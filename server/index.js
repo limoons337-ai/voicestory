@@ -420,3 +420,13 @@ if (SERVE_STATIC) {
 app.listen(CFG.port, () => {
   console.log(`[voxrpg] http://localhost:${CFG.port}  (mock=${CFG.mock}, model=${CFG.model}, backend=${CFG.baseUrl})`);
 });
+
+// Keep-alive: Render 무료 티어 콜드스타트 방지 — 5분마다 자기 자신(/api/health)을 깨움.
+// RENDER_EXTERNAL_URL 은 Render가 자동 주입(예: https://voicestory.onrender.com). 로컬엔 없어서 미작동.
+const SELF_URL = process.env.RENDER_EXTERNAL_URL || process.env.SELF_URL || '';
+if (SELF_URL) {
+  console.log('[keepalive] 5분마다 자체 핑:', SELF_URL);
+  setInterval(() => {
+    fetch(`${SELF_URL.replace(/\/$/, '')}/api/health`).catch(() => {});
+  }, 5 * 60 * 1000);
+}
