@@ -71,22 +71,45 @@ export class Recognizer {
 // 크롬은 긴 발화를 ~15초에서 끊는 버그가 있어 문장 단위로 큐잉한다.
 export const ttsSupported = 'speechSynthesis' in window;
 
-let koVoice: SpeechSynthesisVoice | null = null;
-function pickKoreanVoice(): SpeechSynthesisVoice | null {
-  if (koVoice) return koVoice;
+const VOICE_KEY = 'voxrpg.voiceName';
+
+export function listKoreanVoices(): SpeechSynthesisVoice[] {
   const voices = window.speechSynthesis?.getVoices?.() || [];
-  koVoice =
-    voices.find((v) => v.lang?.toLowerCase().startsWith('ko')) ||
-    voices.find((v) => /korean|한국/i.test(v.name)) ||
-    null;
-  return koVoice;
+  return voices.filter((v) => v.lang?.toLowerCase().startsWith('ko') || /korean|한국/i.test(v.name));
+}
+
+// 여성·상냥한 목소리 우선 점수
+function scoreVoice(v: SpeechSynthesisVoice): number {
+  const n = v.name.toLowerCase();
+  let s = 0;
+  if (/female|여성|heami|sunhi|yuna|nari|seoyeon|jimin|가람|아라|지연|서연|보라/.test(n)) s += 10;
+  if (/male|남성|injoon|minjun|민준|현우|namjoon/.test(n)) s -= 10;
+  if (/google/.test(n)) s += 4; // 구글 한국어 보이스는 대체로 여성·자연스러움
+  if (/네트워크|online|natural|neural/.test(n)) s += 2;
+  return s;
+}
+
+export function setSelectedVoice(name: string) {
+  try { localStorage.setItem(VOICE_KEY, name); } catch {}
+}
+export function getSelectedVoiceName(): string {
+  try { return localStorage.getItem(VOICE_KEY) || ''; } catch { return ''; }
+}
+
+function pickKoreanVoice(): SpeechSynthesisVoice | null {
+  const list = listKoreanVoices();
+  if (!list.length) return null;
+  const saved = getSelectedVoiceName();
+  if (saved) {
+    const hit = list.find((v) => v.name === saved);
+    if (hit) return hit;
+  }
+  // 저장 선택 없으면 여성 우선 자동 선택
+  return [...list].sort((a, b) => scoreVoice(b) - scoreVoice(a))[0];
 }
 if (ttsSupported) {
-  // 일부 브라우저는 목록이 비동기로 로드됨
-  window.speechSynthesis.onvoiceschanged = () => {
-    koVoice = null;
-    pickKoreanVoice();
-  };
+  // 일부 브라우저는 목록이 비동기로 로드됨 — 목록만 미리 워밍
+  window.speechSynthesis.onvoiceschanged = () => { listKoreanVoices(); };
 }
 
 function splitSentences(text: string): string[] {
@@ -142,8 +165,8 @@ export function speak(text: string, opts: SpeakOpts = {}) {
     const u = new SpeechSynthesisUtterance(parts[i++]);
     u.lang = 'ko-KR';
     if (voice) u.voice = voice;
-    u.rate = 1.0;
-    u.pitch = 1.0;
+    u.rate = 1.02;
+    u.pitch = 1.12; // 살짝 높여 젊고 밝은 톤
     u.onend = next;
     u.onerror = next;
     window.speechSynthesis.speak(u);

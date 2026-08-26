@@ -1,6 +1,6 @@
 import './style.css';
 import { fetchWorlds, streamChat, type World, type Turn } from './api';
-import { Recognizer, sttSupported, ttsSupported, speak, stopSpeaking } from './speech';
+import { Recognizer, sttSupported, ttsSupported, speak, stopSpeaking, listKoreanVoices, setSelectedVoice, getSelectedVoiceName } from './speech';
 import { Avatar2D as Avatar, type Emotion, type Action } from './avatar2d';
 import { listSaves, upsertSave, removeSave, newSessionId, relativeTime, type Save } from './saves';
 
@@ -70,6 +70,7 @@ function renderChat() {
         <div class="brand" style="font-size:15px">${esc(state.world!.name)}</div>
         <div class="spacer"></div>
         <span class="pill" id="remain"></span>
+        <select class="voicesel" id="voicesel" title="세아 목소리 선택"></select>
         <button class="iconbtn ${state.voiceOn ? 'on' : ''}" id="voice" title="낭독 켜기/끄기">${state.voiceOn ? '🔊' : '🔇'}</button>
       </div>
       <div class="stage" id="stage"></div>
@@ -98,6 +99,13 @@ function renderChat() {
   document.getElementById('send')!.onclick = onSend;
   document.getElementById('mic')!.onclick = onMic;
 
+  const voicesel = document.getElementById('voicesel') as HTMLSelectElement;
+  voicesel.onchange = () => {
+    setSelectedVoice(voicesel.value);
+    stopSpeaking(mouthCb);
+    speak('안녕, 나는 세아야. 이 목소리 괜찮아?', { onMouth: mouthCb });
+  };
+
   const ta = document.getElementById('text') as HTMLTextAreaElement;
   ta.addEventListener('input', () => {
     ta.style.height = 'auto';
@@ -118,8 +126,28 @@ function renderChat() {
   const stage = document.getElementById('stage') as HTMLElement;
   state.avatar = new Avatar(stage, state.world!.char || 'default');
 
+  populateVoiceSelect();
   renderLog();
   updateRemaining();
+}
+
+function populateVoiceSelect() {
+  const sel = document.getElementById('voicesel') as HTMLSelectElement | null;
+  if (!sel) return;
+  const voices = listKoreanVoices();
+  if (!voices.length) {
+    sel.innerHTML = '<option>기본 목소리</option>';
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  const current = getSelectedVoiceName();
+  sel.innerHTML = voices
+    .map((v) => {
+      const label = v.name.replace(/^(Microsoft|Google)\s+/i, '').slice(0, 18);
+      return `<option value="${esc(v.name)}"${v.name === current ? ' selected' : ''}>🗣 ${esc(label)}</option>`;
+    })
+    .join('');
 }
 
 function disposeAvatar() {
@@ -345,6 +373,11 @@ async function boot() {
   }
 }
 boot();
+
+// 목소리 목록이 비동기로 로드되는 기기에서 선택기 갱신
+if (ttsSupported) {
+  window.speechSynthesis?.addEventListener?.('voiceschanged', () => populateVoiceSelect());
+}
 
 // PWA 서비스워커
 if ('serviceWorker' in navigator) {
