@@ -6,3 +6,16 @@ dist/
 _tmp/
 store-screenshots/
 assets/
+
+# Bubblewrap / Android TWA — 서명키·빌드산출물은 절대 커밋 금지
+*.keystore
+*.jks
+android/.gradle/
+android/build/
+android/app/build/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/store_icon.png
+android/manifest-checksum.txt
+certinfo.txt
