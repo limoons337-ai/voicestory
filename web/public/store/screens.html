@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>보이스토리 — 스토어 스크린샷</title>
+<style>
+  :root{
+    --bg:#0e0b16; --bg2:#17122a; --panel:#1b1530; --panel2:#241b40; --line:#322850;
+    --text:#ece7ff; --muted:#a79fce; --accent:#7c5cff; --accent2:#c86bff; --ok:#5ce0a0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#000;font-family:'Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:24px;padding:24px;}
+  .hint{color:#888;font-size:14px;text-align:center;max-width:1080px;}
+  /* 원스토어 폰 스크린샷 규격 1080x1920 */
+  .panel{
+    width:1080px;height:1920px;flex:0 0 auto;position:relative;overflow:hidden;
+    background:
+      radial-gradient(70% 50% at 50% 22%, rgba(124,92,255,0.30), transparent 70%),
+      linear-gradient(180deg,#1a1130 0%, #0e0b16 60%, #0a0713 100%);
+    color:var(--text);display:flex;flex-direction:column;
+    padding:96px 72px;border-radius:0;
+  }
+  .brandline{display:flex;align-items:center;gap:16px;}
+  .brandline img{width:56px;height:56px;border-radius:14px;}
+  .brandline b{font-size:30px;letter-spacing:1px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  h1{font-size:88px;line-height:1.15;font-weight:900;letter-spacing:-1px;margin-top:40px;}
+  h1 .g{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{font-size:38px;color:var(--muted);margin-top:24px;line-height:1.4;}
+  .grow{flex:1;}
+  .hero-char{position:absolute;left:0;right:0;bottom:-40px;margin:auto;width:820px;filter:drop-shadow(0 30px 80px rgba(124,92,255,0.4));object-fit:contain;}
+  .mask-b{position:absolute;left:0;right:0;bottom:0;height:420px;background:linear-gradient(180deg,transparent,var(--bg) 82%);}
+  .mic{position:absolute;left:0;right:0;bottom:150px;margin:auto;width:150px;height:150px;border-radius:50%;background:linear-gradient(160deg,var(--accent),var(--accent2));display:grid;place-items:center;font-size:64px;box-shadow:0 20px 60px rgba(124,92,255,0.5);}
+  .foot{position:absolute;left:72px;right:72px;bottom:70px;text-align:center;color:var(--muted);font-size:28px;z-index:3;}
+
+  /* 세계 그리드 */
+  .worlds{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:56px;}
+  .wcard{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:28px;overflow:hidden;height:418px;position:relative;}
+  .wcard img{width:100%;height:100%;object-fit:cover;object-position:50% 12%;}
+  .wcard .cap{position:absolute;left:0;right:0;bottom:0;padding:26px;background:linear-gradient(180deg,transparent,rgba(10,7,19,0.92));font-size:34px;font-weight:800;}
+  .wcard .cap small{display:block;color:var(--muted);font-size:24px;font-weight:500;margin-top:6px;}
+
+  /* 표정 그리드 */
+  .exps{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:60px;}
+  .exp{background:var(--panel);border:1px solid var(--line);border-radius:26px;overflow:hidden;height:560px;position:relative;}
+  .exp img{width:100%;height:100%;object-fit:cover;object-position:50% 8%;}
+  .exp .tag{position:absolute;top:20px;left:20px;background:rgba(14,11,22,0.8);border:1px solid var(--line);border-radius:999px;padding:8px 20px;font-size:28px;font-weight:700;color:var(--accent2);}
+
+  /* 채팅 목업 */
+  .chat{margin-top:56px;display:flex;flex-direction:column;gap:26px;}
+  .stage{height:640px;border-radius:32px;overflow:hidden;position:relative;background:radial-gradient(60% 55% at 50% 40%,rgba(124,92,255,0.28),transparent 70%),#120d24;border:1px solid var(--line);}
+  .stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 6%;}
+  .bubble{max-width:88%;padding:30px 34px;border-radius:26px;font-size:36px;line-height:1.5;}
+  .gm{align-self:flex-start;background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-top-left-radius:8px;}
+  .me{align-self:flex-end;background:#2a2350;border:1px solid var(--line);border-top-right-radius:8px;}
+  .who{font-size:24px;color:var(--muted);margin-bottom:8px;}
+
+  /* 세이브 목업 */
+  .saves{margin-top:70px;display:flex;flex-direction:column;gap:22px;}
+  .ssec{font-size:30px;color:var(--muted);font-weight:800;margin-bottom:6px;}
+  .srow{display:flex;align-items:center;gap:20px;background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:30px 34px;}
+  .srow .sw{font-size:38px;font-weight:800;}
+  .srow .sp{font-size:28px;color:var(--muted);margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .srow .st{font-size:26px;color:var(--muted);}
+  .srow .sx{color:var(--muted);font-size:34px;}
+  .srow img{width:120px;height:120px;border-radius:20px;object-fit:cover;object-position:50% 10%;flex:0 0 auto;}
+</style>
+</head>
+<body>
+  <div class="hint">원스토어 폰 스크린샷 규격 1080×1920 · 각 컷을 캡처하거나 이 페이지를 폰에서 열어 스크린샷하세요.</div>
+
+  <!-- 1. HOOK -->
+  <section class="panel">
+    <div class="brandline"><img src="/icon-512.png" alt=""><b>보이스토리</b></div>
+    <h1>말만 하면,<br><span class="g">이야기가 시작된다</span></h1>
+    <div class="sub">AI 이야기 동반자 '세아'와 함께<br>당신만의 이야기를 실시간으로.</div>
+    <img class="hero-char" src="/avatars/2d/default/happy.webp" alt="">
+    <div class="mask-b"></div>
+    <div class="mic">🎤</div>
+    <div class="foot">마이크를 누르고 말하기만 하면 됩니다</div>
+  </section>
+
+  <!-- 2. WORLDS -->
+  <section class="panel">
+    <div class="brandline"><img src="/icon-512.png" alt=""><b>보이스토리</b></div>
+    <h1>여섯 개의 세계,<br><span class="g">무한한 이야기</span></h1>
+    <div class="worlds">
+      <div class="wcard"><img src="/avatars/2d/murim/neutral.webp"><div class="cap">무림<small>강호의 신입 무사</small></div></div>
+      <div class="wcard"><img src="/avatars/2d/default/neutral.webp"><div class="cap">이세계<small>소환된 이방인</small></div></div>
+      <div class="wcard"><img src="/avatars/2d/romance/happy.webp"><div class="cap">로맨스<small>벚꽃 캠퍼스</small></div></div>
+      <div class="wcard"><img src="/avatars/2d/zombie/neutral.webp"><div class="cap">종말<small>감염 도시</small></div></div>
+      <div class="wcard"><img src="/avatars/2d/academy/neutral.webp"><div class="cap">학원<small>마법학교</small></div></div>
+      <div class="wcard"><img src="/avatars/2d/mystery/neutral.webp"><div class="cap">추리<small>밀실의 초대</small></div></div>
+    </div>
+  </section>
+
+  <!-- 3. EXPRESSIONS -->
+  <section class="panel">
+    <div class="brandline"><img src="/icon-512.png" alt=""><b>보이스토리</b></div>
+    <h1>당신의 말에,<br><span class="g">표정으로 반응한다</span></h1>
+    <div class="sub">세아는 장면의 감정을 얼굴로 드러냅니다.</div>
+    <div class="exps">
+      <div class="exp"><span class="tag">기쁨</span><img src="/avatars/2d/default/happy.webp"></div>
+      <div class="exp"><span class="tag">놀람</span><img src="/avatars/2d/default/surprised.webp"></div>
+      <div class="exp"><span class="tag">슬픔</span><img src="/avatars/2d/default/sad.webp"></div>
+      <div class="exp"><span class="tag">부끄럼</span><img src="/avatars/2d/default/shy.webp"></div>
+    </div>
+  </section>
+
+  <!-- 4. AI STORY -->
+  <section class="panel">
+    <div class="brandline"><img src="/icon-512.png" alt=""><b>보이스토리</b></div>
+    <h1>정해진 대본은 없다.<br><span class="g">AI가 실시간으로.</span></h1>
+    <div class="chat">
+      <div class="stage"><img src="/avatars/2d/murim/surprised.webp"></div>
+      <div class="bubble gm"><div class="who">세아</div>낡은 한지 위에 먹이 번진 세 줄. '검술은 마음을 거스르지 말라.' 그때, 말발굽 소리가 문 앞까지 다다랐다. 어떻게 하겠느냐?</div>
+      <div class="bubble me"><div class="who">나</div>목검을 쥐고 문 뒤에 숨는다</div>
+    </div>
+  </section>
+
+  <!-- 5. SAVE -->
+  <section class="panel">
+    <div class="brandline"><img src="/icon-512.png" alt=""><b>보이스토리</b></div>
+    <h1>이어하기로,<br><span class="g">언제든 다시.</span></h1>
+    <div class="sub">여러 이야기를 저장하고 원할 때 이어가세요.</div>
+    <div class="saves">
+      <div class="ssec">이어하기</div>
+      <div class="srow"><img src="/avatars/2d/academy/neutral.webp"><div style="flex:1;min-width:0"><div class="sw">학원: 마법학교의 신입생</div><div class="sp">하얀 증표를 자세히 살펴본다…</div></div><div class="st">방금</div><div class="sx">✕</div></div>
+      <div class="srow"><img src="/avatars/2d/romance/happy.webp"><div style="flex:1;min-width:0"><div class="sw">로맨스: 벚꽃 캠퍼스</div><div class="sp">세아에게 이름을 물어본다…</div></div><div class="st">2시간 전</div><div class="sx">✕</div></div>
+      <div class="srow"><img src="/avatars/2d/zombie/neutral.webp"><div style="flex:1;min-width:0"><div class="sw">종말: 감염 도시</div><div class="sp">무전기에 조심스럽게 답한다…</div></div><div class="st">어제</div><div class="sx">✕</div></div>
+    </div>
+    <div class="grow"></div>
+    <div class="brandline" style="justify-content:center"><img src="/icon-512.png" alt=""><b>보이스토리</b></div>
+  </section>
+</body>
+</html>

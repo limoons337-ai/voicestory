@@ -1,0 +1,20 @@
+# Render Blueprint — 단일 웹 서비스(Docker). 대시보드 New > Blueprint 로 이 저장소 연결.
+services:
+  - type: web
+    name: voicestory
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter   # free 는 15분 미사용 시 슬립(콜드스타트). 상시가동은 starter 권장.
+    healthCheckPath: /api/health
+    envVars:
+      - key: LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: LLM_MODEL
+        value: qwen/qwen3.6-27b
+      - key: LLM_API_KEY
+        sync: false          # 시크릿 — 대시보드에서 직접 입력(gsk_...)
+      - key: FREE_DAILY_TURNS
+        value: "30"
+      - key: MAX_TOKENS
+        value: "320"
+      # PORT 는 Render 가 자동 주입 (코드가 process.env.PORT 사용)

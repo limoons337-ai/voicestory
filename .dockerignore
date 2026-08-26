@@ -1,0 +1,10 @@
+**/node_modules
+web/dist
+server/.env
+_tmp
+store-screenshots
+assets
+.git
+*.log
+*.md
+android

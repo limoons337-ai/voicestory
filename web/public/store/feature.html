@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>보이스토리 — 그래픽 이미지</title>
+<style>
+  :root{ --bg:#0e0b16; --panel:#1b1530; --line:#322850; --text:#ece7ff; --muted:#a79fce; --accent:#7c5cff; --accent2:#c86bff; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#000;font-family:'Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;padding:20px;}
+  /* 원스토어 그래픽 이미지 규격 1024x578 */
+  .feature{
+    width:1024px;height:578px;position:relative;overflow:hidden;color:var(--text);
+    background:
+      radial-gradient(60% 90% at 82% 50%, rgba(200,107,255,0.30), transparent 60%),
+      radial-gradient(70% 70% at 18% 30%, rgba(124,92,255,0.28), transparent 65%),
+      linear-gradient(120deg,#1a1130 0%, #0e0b16 55%, #0a0713 100%);
+  }
+  .left{position:absolute;left:64px;top:0;bottom:0;width:600px;display:flex;flex-direction:column;justify-content:center;z-index:2;}
+  .brandline{display:flex;align-items:center;gap:14px;margin-bottom:20px;}
+  .brandline img{width:52px;height:52px;border-radius:13px;}
+  .brandline b{font-size:26px;letter-spacing:1px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  h1{font-size:62px;line-height:1.12;font-weight:900;letter-spacing:-1px;}
+  h1 .g{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{font-size:26px;color:var(--muted);margin-top:20px;line-height:1.4;}
+  .chips{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap;}
+  .chip{font-size:18px;color:var(--text);border:1px solid var(--line);background:rgba(27,21,48,0.6);border-radius:999px;padding:8px 16px;}
+  .char{position:absolute;right:-30px;bottom:0;height:600px;filter:drop-shadow(0 20px 60px rgba(124,92,255,0.45));object-fit:contain;z-index:1;}
+  .fade-r{position:absolute;right:0;top:0;bottom:0;width:120px;background:linear-gradient(90deg,transparent,rgba(10,7,19,0.6));z-index:1;}
+</style>
+</head>
+<body>
+  <div class="feature">
+    <img class="char" src="/avatars/2d/default/happy.webp" alt="">
+    <div class="fade-r"></div>
+    <div class="left">
+      <div class="brandline"><img src="/icon-512.png" alt=""><b>보이스토리</b></div>
+      <h1>말만 하면,<br><span class="g">이야기가 시작된다</span></h1>
+      <div class="sub">AI 이야기 동반자 '세아'와 만드는<br>음성 자유 시나리오 RPG.</div>
+      <div class="chips"><span class="chip">무림</span><span class="chip">이세계</span><span class="chip">로맨스</span><span class="chip">종말</span><span class="chip">학원</span><span class="chip">추리</span></div>
+    </div>
+  </div>
+</body>
+</html>
