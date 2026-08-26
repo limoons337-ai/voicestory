@@ -4,7 +4,7 @@ services:
     name: voicestory
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter   # free 는 15분 미사용 시 슬립(콜드스타트). 상시가동은 starter 권장.
+    plan: free      # 무료(카드X). 15분 미사용 시 슬립→다음 요청 때 콜드스타트(~30초). 상시가동 원하면 starter.
     healthCheckPath: /api/health
     envVars:
       - key: LLM_BASE_URL
