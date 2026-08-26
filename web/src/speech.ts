@@ -174,7 +174,89 @@ export function speak(text: string, opts: SpeakOpts = {}) {
   next();
 }
 
+// ── 프리미엄 TTS (서버 /api/tts → mp3 재생 + 오디오 기반 립싱크) ──
+let premiumEnabled = false;
+let curAudio: HTMLAudioElement | null = null;
+let curAudioRaf = 0;
+let audioCtx: AudioContext | null = null;
+
+export function setPremiumTTS(on: boolean) {
+  premiumEnabled = on;
+}
+export function isPremiumTTS() {
+  return premiumEnabled;
+}
+
+function stopPremium() {
+  if (curAudioRaf) cancelAnimationFrame(curAudioRaf);
+  curAudioRaf = 0;
+  if (curAudio) {
+    try { curAudio.pause(); } catch {}
+    curAudio = null;
+  }
+}
+
+async function speakPremium(text: string, opts: SpeakOpts): Promise<boolean> {
+  const { onMouth, onDone } = opts;
+  let res: Response;
+  try {
+    res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+  } catch {
+    return false; // 네트워크 실패 → 브라우저 TTS로
+  }
+  if (res.status === 204 || !res.ok) return false; // 키 없음/실패 → 폴백
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  curAudio = audio;
+
+  // 오디오 진폭으로 입 움직임 (진짜 립싱크)
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+    await audioCtx.resume();
+    const srcNode = audioCtx.createMediaElementSource(audio);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    srcNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let i = 2; i < 24; i++) sum += data[i];
+      onMouth?.(Math.min(1, sum / 22 / 110));
+      curAudioRaf = requestAnimationFrame(tick);
+    };
+    tick();
+  } catch {
+    /* 분석 실패해도 재생은 진행 */
+  }
+
+  return await new Promise<boolean>((resolve) => {
+    audio.onended = () => { stopPremium(); onMouth?.(0); URL.revokeObjectURL(url); onDone?.(); resolve(true); };
+    audio.onerror = () => { stopPremium(); onMouth?.(0); URL.revokeObjectURL(url); onDone?.(); resolve(true); };
+    audio.play().catch(() => { stopPremium(); resolve(false); });
+  });
+}
+
+// 통합 낭독: 프리미엄 가능하면 프리미엄, 실패/미설정이면 브라우저 TTS
+export function narrate(text: string, opts: SpeakOpts = {}) {
+  stopSpeaking();
+  if (premiumEnabled) {
+    speakPremium(text, opts).then((ok) => {
+      if (!ok) speak(text, opts); // 프리미엄 실패 시 브라우저 폴백
+    });
+  } else {
+    speak(text, opts);
+  }
+}
+
 export function stopSpeaking(onMouth?: (v: number) => void) {
   if (ttsSupported) window.speechSynthesis.cancel();
+  stopPremium();
   clearMouth(onMouth);
 }

@@ -1,6 +1,6 @@
 import './style.css';
 import { fetchWorlds, streamChat, type World, type Turn } from './api';
-import { Recognizer, sttSupported, ttsSupported, speak, stopSpeaking, listKoreanVoices, setSelectedVoice, getSelectedVoiceName } from './speech';
+import { Recognizer, sttSupported, ttsSupported, speak, narrate, stopSpeaking, setPremiumTTS, listKoreanVoices, setSelectedVoice, getSelectedVoiceName } from './speech';
 import { Avatar2D as Avatar, type Emotion, type Action } from './avatar2d';
 import { listSaves, upsertSave, removeSave, newSessionId, relativeTime, type Save } from './saves';
 
@@ -212,7 +212,7 @@ function startWorld(w: World) {
   state.history = [{ role: 'assistant', content: w.opening }];
   renderChat();
   state.avatar?.setEmotion('neutral');
-  if (state.voiceOn) speak(w.opening, { onMouth: mouthCb });
+  if (state.voiceOn) narrate(w.opening, { onMouth: mouthCb });
 }
 
 function resumeSave(save: Save) {
@@ -344,7 +344,7 @@ async function submit(text: string) {
       // 캐릭터 연출
       state.avatar?.setEmotion(emotion as Emotion);
       state.avatar?.playAction(action as Action);
-      if (state.voiceOn) speak(reply, { onMouth: mouthCb });
+      if (state.voiceOn) narrate(reply, { onMouth: mouthCb });
     },
     onError: (err) => {
       state.streaming = { active: false, text: '' };
@@ -364,6 +364,10 @@ async function submit(text: string) {
 // ── 부트스트랩 ────────────────────────────────────────────────
 async function boot() {
   renderSelect();
+  try {
+    const h = await fetch('/api/health').then((r) => r.json());
+    setPremiumTTS(!!h.tts); // 서버에 TTS 키 있으면 프리미엄 목소리 사용
+  } catch { /* health 실패 시 브라우저 TTS */ }
   try {
     state.worlds = await fetchWorlds();
     renderSelect();

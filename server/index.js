@@ -21,6 +21,10 @@ const CFG = {
   port: Number(process.env.PORT || 8787),
   freeDailyTurns: Number(process.env.FREE_DAILY_TURNS || 30),
   maxTokens: Number(process.env.MAX_TOKENS || 320),
+  // 프리미엄 TTS (ElevenLabs). 키 없으면 프런트가 브라우저 TTS로 폴백.
+  ttsKey: process.env.TTS_API_KEY || '',
+  ttsVoice: process.env.TTS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL', // ElevenLabs 'Sarah' (젊고 부드러운 여성)
+  ttsModel: process.env.TTS_MODEL || 'eleven_multilingual_v2',
 };
 
 // ── 공통 게임마스터 프레임워크 (모든 세계 공통 규칙) ──────────────
@@ -265,7 +269,39 @@ if (SERVE_STATIC) {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, mock: CFG.mock, model: CFG.model, worlds: Object.keys(WORLDS).length });
+  res.json({ ok: true, mock: CFG.mock, model: CFG.model, worlds: Object.keys(WORLDS).length, tts: !!CFG.ttsKey });
+});
+
+// 프리미엄 TTS: text → mp3 오디오. 키 없으면 204(프런트가 브라우저 TTS 사용).
+app.post('/api/tts', async (req, res) => {
+  if (!CFG.ttsKey) return res.status(204).end();
+  const text = (req.body?.text || '').toString().trim().slice(0, 800);
+  if (!text) return res.status(400).json({ error: 'text가 필요합니다.' });
+  try {
+    const r = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${CFG.ttsVoice}?output_format=mp3_44100_128`,
+      {
+        method: 'POST',
+        headers: { 'xi-api-key': CFG.ttsKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          model_id: CFG.ttsModel,
+          voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.35, use_speaker_boost: true },
+        }),
+      }
+    );
+    if (!r.ok) {
+      const b = await r.text().catch(() => '');
+      console.error('[tts]', r.status, b.slice(0, 200));
+      return res.status(502).json({ error: 'TTS 생성 실패' });
+    }
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store');
+    res.end(Buffer.from(await r.arrayBuffer()));
+  } catch (e) {
+    console.error('[tts]', e.message);
+    res.status(502).json({ error: 'TTS 오류' });
+  }
 });
 
 // 세계 목록 (system 프롬프트는 노출하지 않음)
