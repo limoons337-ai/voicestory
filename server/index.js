@@ -21,8 +21,8 @@ const CFG = {
   port: Number(process.env.PORT || 8787),
   freeDailyTurns: Number(process.env.FREE_DAILY_TURNS || 30),
   maxTokens: Number(process.env.MAX_TOKENS || 320),
-  // 프리미엄 TTS. 키 없으면 프런트가 브라우저 TTS로 폴백.
-  ttsProvider: process.env.TTS_PROVIDER || 'google', // 'google' | 'elevenlabs'
+  // 프리미엄 TTS. edge=무료·키없음(기본). google/elevenlabs=키 필요. 실패 시 프런트가 브라우저 TTS로 폴백.
+  ttsProvider: process.env.TTS_PROVIDER || 'edge', // 'edge' | 'google' | 'elevenlabs'
   ttsKey: process.env.TTS_API_KEY || '',
   ttsVoice: process.env.TTS_VOICE_ID || '', // 비우면 프로바이더별 기본 여성 목소리
   ttsModel: process.env.TTS_MODEL || 'eleven_multilingual_v2',
@@ -270,17 +270,33 @@ if (SERVE_STATIC) {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, mock: CFG.mock, model: CFG.model, worlds: Object.keys(WORLDS).length, tts: !!CFG.ttsKey });
+  const ttsOn = CFG.ttsProvider === 'edge' || !!CFG.ttsKey;
+  res.json({ ok: true, mock: CFG.mock, model: CFG.model, worlds: Object.keys(WORLDS).length, tts: ttsOn });
 });
 
-// 프리미엄 TTS: text → mp3 오디오. 키 없으면 204(프런트가 브라우저 TTS 사용).
+// 프리미엄 TTS: text → mp3 오디오. 사용 불가면 204(프런트가 브라우저 TTS 사용).
 app.post('/api/tts', async (req, res) => {
-  if (!CFG.ttsKey) return res.status(204).end();
+  const needsKey = CFG.ttsProvider !== 'edge';
+  if (needsKey && !CFG.ttsKey) return res.status(204).end();
   const text = (req.body?.text || '').toString().trim().slice(0, 800);
   if (!text) return res.status(400).json({ error: 'text가 필요합니다.' });
   try {
     let audio; // Buffer(mp3)
-    if (CFG.ttsProvider === 'google') {
+    if (CFG.ttsProvider === 'edge') {
+      // Microsoft Edge TTS — 무료·키 없음. ko-KR-SunHiNeural(선히·여성).
+      const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
+      const voice = CFG.ttsVoice || 'ko-KR-SunHiNeural';
+      const t = new MsEdgeTTS();
+      await t.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+      const out = t.toStream(text);
+      const stream = out?.audioStream || out; // 버전별 반환형 대응
+      audio = await new Promise((resolve, reject) => {
+        const chunks = [];
+        stream.on('data', (c) => chunks.push(c));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+        stream.on('error', reject);
+      });
+    } else if (CFG.ttsProvider === 'google') {
       // 구글 클라우드 TTS (한국어 네이티브 여성). 무료 100만자/월.
       const voice = CFG.ttsVoice || 'ko-KR-Neural2-A'; // 여성
       const r = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${CFG.ttsKey}`, {
