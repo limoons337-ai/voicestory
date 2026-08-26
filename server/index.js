@@ -21,9 +21,10 @@ const CFG = {
   port: Number(process.env.PORT || 8787),
   freeDailyTurns: Number(process.env.FREE_DAILY_TURNS || 30),
   maxTokens: Number(process.env.MAX_TOKENS || 320),
-  // 프리미엄 TTS (ElevenLabs). 키 없으면 프런트가 브라우저 TTS로 폴백.
+  // 프리미엄 TTS. 키 없으면 프런트가 브라우저 TTS로 폴백.
+  ttsProvider: process.env.TTS_PROVIDER || 'google', // 'google' | 'elevenlabs'
   ttsKey: process.env.TTS_API_KEY || '',
-  ttsVoice: process.env.TTS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL', // ElevenLabs 'Sarah' (젊고 부드러운 여성)
+  ttsVoice: process.env.TTS_VOICE_ID || '', // 비우면 프로바이더별 기본 여성 목소리
   ttsModel: process.env.TTS_MODEL || 'eleven_multilingual_v2',
 };
 
@@ -278,9 +279,30 @@ app.post('/api/tts', async (req, res) => {
   const text = (req.body?.text || '').toString().trim().slice(0, 800);
   if (!text) return res.status(400).json({ error: 'text가 필요합니다.' });
   try {
-    const r = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${CFG.ttsVoice}?output_format=mp3_44100_128`,
-      {
+    let audio; // Buffer(mp3)
+    if (CFG.ttsProvider === 'google') {
+      // 구글 클라우드 TTS (한국어 네이티브 여성). 무료 100만자/월.
+      const voice = CFG.ttsVoice || 'ko-KR-Neural2-A'; // 여성
+      const r = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${CFG.ttsKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: { text },
+          voice: { languageCode: 'ko-KR', name: voice },
+          audioConfig: { audioEncoding: 'MP3', pitch: 1.5, speakingRate: 1.03 },
+        }),
+      });
+      if (!r.ok) {
+        const b = await r.text().catch(() => '');
+        console.error('[tts:google]', r.status, b.slice(0, 200));
+        return res.status(502).json({ error: 'TTS 생성 실패' });
+      }
+      const j = await r.json();
+      audio = Buffer.from(j.audioContent, 'base64');
+    } else {
+      // ElevenLabs
+      const voice = CFG.ttsVoice || 'EXAVITQu4vr4xnSDxMaL';
+      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
         method: 'POST',
         headers: { 'xi-api-key': CFG.ttsKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -288,16 +310,17 @@ app.post('/api/tts', async (req, res) => {
           model_id: CFG.ttsModel,
           voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.35, use_speaker_boost: true },
         }),
+      });
+      if (!r.ok) {
+        const b = await r.text().catch(() => '');
+        console.error('[tts:11l]', r.status, b.slice(0, 200));
+        return res.status(502).json({ error: 'TTS 생성 실패' });
       }
-    );
-    if (!r.ok) {
-      const b = await r.text().catch(() => '');
-      console.error('[tts]', r.status, b.slice(0, 200));
-      return res.status(502).json({ error: 'TTS 생성 실패' });
+      audio = Buffer.from(await r.arrayBuffer());
     }
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'no-store');
-    res.end(Buffer.from(await r.arrayBuffer()));
+    res.end(audio);
   } catch (e) {
     console.error('[tts]', e.message);
     res.status(502).json({ error: 'TTS 오류' });
