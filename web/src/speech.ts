@@ -167,8 +167,8 @@ export function speak(text: string, opts: SpeakOpts = {}) {
     const u = new SpeechSynthesisUtterance(parts[i++]);
     u.lang = 'ko-KR';
     if (voice) u.voice = voice;
-    u.rate = 0.98; // 살짝 느리게 = 상냥하고 또박또박
-    u.pitch = 1.15; // 살짝 높여 젊고 밝은 톤
+    u.rate = 1.03; // 자연스러운 속도 (너무 느리면 늘어져 들림)
+    u.pitch = 1.04; // 아주 살짝만 높임 (과하면 경박하게 들림)
     u.onend = next;
     u.onerror = next;
     window.speechSynthesis.speak(u);
