@@ -78,14 +78,16 @@ export function listKoreanVoices(): SpeechSynthesisVoice[] {
   return voices.filter((v) => v.lang?.toLowerCase().startsWith('ko') || /korean|한국/i.test(v.name));
 }
 
-// 여성·상냥한 목소리 우선 점수
+// 여성·상냥한 목소리 우선 점수 (높을수록 우선)
 function scoreVoice(v: SpeechSynthesisVoice): number {
   const n = v.name.toLowerCase();
   let s = 0;
-  if (/female|여성|heami|sunhi|yuna|nari|seoyeon|jimin|가람|아라|지연|서연|보라/.test(n)) s += 10;
-  if (/male|남성|injoon|minjun|민준|현우|namjoon/.test(n)) s -= 10;
-  if (/google/.test(n)) s += 4; // 구글 한국어 보이스는 대체로 여성·자연스러움
-  if (/네트워크|online|natural|neural/.test(n)) s += 2;
+  // 안드로이드 크롬의 '구글 한국어'가 가장 자연스러운 여성 목소리 → 강하게 우선
+  if (/google/.test(n)) s += 8;
+  if (/female|여성|heami|sunhi|yuna|유나|nari|나리|seoyeon|서연|jimin|지민|가람|아라|지연|보라/.test(n)) s += 10;
+  // 남성 음성은 확실히 배제 (여성 키워드가 있어도 남성이면 강한 감점)
+  if (/male|남성|injoon|인준|minjun|민준|현우|namjoon|남준/.test(n)) s -= 25;
+  if (/네트워크|online|natural|neural|enhanced|premium/.test(n)) s += 3;
   return s;
 }
 
@@ -165,8 +167,8 @@ export function speak(text: string, opts: SpeakOpts = {}) {
     const u = new SpeechSynthesisUtterance(parts[i++]);
     u.lang = 'ko-KR';
     if (voice) u.voice = voice;
-    u.rate = 1.02;
-    u.pitch = 1.12; // 살짝 높여 젊고 밝은 톤
+    u.rate = 0.98; // 살짝 느리게 = 상냥하고 또박또박
+    u.pitch = 1.15; // 살짝 높여 젊고 밝은 톤
     u.onend = next;
     u.onerror = next;
     window.speechSynthesis.speak(u);

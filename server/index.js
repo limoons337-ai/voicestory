@@ -270,7 +270,9 @@ if (SERVE_STATIC) {
 }
 
 app.get('/api/health', (_req, res) => {
-  const ttsOn = CFG.ttsProvider === 'edge' || !!CFG.ttsKey;
+  // Edge TTS는 클라우드(데이터센터) IP가 MS에 차단돼 빈 오디오(0바이트)를 반환 → 기본 비활성.
+  // 비차단 호스트/로컬에서 쓰려면 TTS_EDGE_OK=1. 키 기반(google/11l)은 키 있으면 활성.
+  const ttsOn = CFG.ttsProvider === 'edge' ? process.env.TTS_EDGE_OK === '1' : !!CFG.ttsKey;
   res.json({ ok: true, mock: CFG.mock, model: CFG.model, worlds: Object.keys(WORLDS).length, tts: ttsOn });
 });
 
