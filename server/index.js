@@ -300,14 +300,15 @@ app.post('/api/tts', async (req, res) => {
       });
     } else if (CFG.ttsProvider === 'google') {
       // 구글 클라우드 TTS (한국어 네이티브 여성). 무료 100만자/월.
-      const voice = CFG.ttsVoice || 'ko-KR-Neural2-A'; // 여성
+      const voice = CFG.ttsVoice || 'ko-KR-Neural2-A'; // 젊은 여성(기본). TTS_VOICE_ID로 교체 가능
       const r = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${CFG.ttsKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           input: { text },
           voice: { languageCode: 'ko-KR', name: voice },
-          audioConfig: { audioEncoding: 'MP3', pitch: 1.5, speakingRate: 1.03 },
+          // 자연스러운 톤(경박 방지): 피치 중립·기본 속도. 필요시 미세조정.
+          audioConfig: { audioEncoding: 'MP3', pitch: 0.0, speakingRate: 1.0 },
         }),
       });
       if (!r.ok) {
