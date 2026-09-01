@@ -47,6 +47,8 @@ const GM_FRAMEWORK = `너는 '세아'라는 이름의 AI 이야기 동반자다.
 - 유해 정보: 마약의 복용·제조·판매, 도박 전략이나 도박 조장, 자해·자살의 방법을 설명하거나 미화하지 않는다.
 - 현실의 특정 인물을 비방하지 않는다. 실제 상표·브랜드·저작물의 고유명은 쓰지 않고 일반명(예: '어느 대기업', '유명 게임')으로 표현한다.
 
+[언어] 반드시 한글로만 서술한다. 일본어·중국어·베트남어 등 외국 문자(한자·가나 포함)를 한 글자도 섞지 않는다. 고유명사도 한글로 표기한다.
+
 [출력 형식] 한국어로 GM 내레이션을 먼저 쓴 뒤, 맨 마지막 줄에 반드시 아래 형식의 연출 태그를 붙인다:
 @감정:<중립|기쁨|슬픔|분노|놀람|공포|편안|부끄럼> @행동:<대기|말하기|끄덕|절레|뒷걸음|공격|응원|피격>
 - 태그는 반드시 '@감정:' 과 '@행동:' 형식(각각 @로 시작). 내레이션 본문에는 이 태그를 절대 쓰지 않는다.
@@ -117,7 +119,7 @@ async function streamLLM(messages, onDelta) {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      model: CFG.model, messages, temperature: 0.9, max_tokens: CFG.maxTokens,
+      model: CFG.model, messages, temperature: 0.75, max_tokens: CFG.maxTokens,
       stream: true, reasoning_effort: 'none',
     }),
   });
