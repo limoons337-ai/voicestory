@@ -98,36 +98,6 @@ function lastUserText(history) {
   return [...history].reverse().find((t) => t.role === 'user')?.content || '';
 }
 
-// 스트리밍 중인 부분 JSON에서 "narration" 문자열 값을 증분 추출 (완결 여부도 반환)
-function extractNarration(buf) {
-  const ki = buf.indexOf('"narration"');
-  if (ki < 0) return null;
-  let i = buf.indexOf(':', ki + 11);
-  if (i < 0) return null;
-  i++;
-  while (i < buf.length && /\s/.test(buf[i])) i++;
-  if (buf[i] !== '"') return null;
-  i++;
-  let out = '';
-  while (i < buf.length) {
-    const c = buf[i];
-    if (c === '\\') {
-      const n = buf[i + 1];
-      if (n === undefined) break; // 이스케이프 미완성
-      if (n === 'u') {
-        if (i + 5 < buf.length) { out += String.fromCharCode(parseInt(buf.slice(i + 2, i + 6), 16)); i += 6; continue; }
-        break;
-      }
-      out += ({ n: '\n', t: '\t', r: '\r', '"': '"', '\\': '\\', '/': '/' })[n] ?? n;
-      i += 2;
-      continue;
-    }
-    if (c === '"') return { text: out, complete: true };
-    out += c;
-    i++;
-  }
-  return { text: out, complete: false };
-}
 
 // 스트리밍 표시용: 내레이션에서 트레일링 연출태그(@감정/@행동)와 그 파편을 잘라낸다
 function stripForDisplay(s) {
@@ -197,7 +167,8 @@ console.log(`[worlds] ${Object.keys(WORLDS).length}개 로드:`, Object.keys(WOR
 // ── 간이 일일 턴 캡 (인메모리; 실서비스는 DB/인증으로 교체) ─────────
 const turnLog = new Map(); // clientId -> { date, count }
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  // KST(UTC+9) 기준 날짜 → 턴 캡이 한국 자정에 리셋. (한국은 DST 없음)
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 }
 function turnRemaining(clientId) { // 소비 없이 남은 턴 확인(peek)
   const today = todayStr();
@@ -213,40 +184,6 @@ function consumeTurn(clientId) { // 실제 1턴 소비, 소비 후 남은 턴 �
   return CFG.freeDailyTurns - rec.count;
 }
 
-// ── LLM 호출 (OpenAI 호환 /chat/completions) ────────────────────
-async function callLLM(messages) {
-  if (CFG.mock) {
-    const last = [...messages].reverse().find((m) => m.role === 'user');
-    return mockReply(last?.content || '');
-  }
-  const url = CFG.baseUrl.replace(/\/$/, '') + '/chat/completions';
-  const headers = { 'Content-Type': 'application/json' };
-  if (CFG.apiKey) headers['Authorization'] = `Bearer ${CFG.apiKey}`;
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      model: CFG.model,
-      messages,
-      temperature: 0.9,
-      max_tokens: CFG.maxTokens,
-      stream: false,
-      // 추론(reasoning) 모델의 사고과정을 끔 (Groq qwen3/gpt-oss 등). 미지원 백엔드는 무시.
-      reasoning_effort: 'none',
-      // JSON 구조화 출력 강제 (narration/emotion/action)
-      response_format: { type: 'json_object' },
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`LLM ${res.status}: ${body.slice(0, 300)}`);
-  }
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error('LLM 빈 응답');
-  return text;
-}
 
 const MOCK_MOODS = [
   { line: '@감정:놀람 @행동:뒷걸음' },
