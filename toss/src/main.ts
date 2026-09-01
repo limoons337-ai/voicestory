@@ -1,11 +1,11 @@
 import './style.css';
-import { fetchWorlds, streamChat, type World, type Turn } from './api';
-import { Recognizer, sttSupported, ttsSupported, speak, narrate, stopSpeaking, setPremiumTTS, isPremiumTTS, listKoreanVoices, setSelectedVoice, getSelectedVoiceName } from './speech';
+import { fetchWorlds, streamChat, API_BASE, type World, type Turn } from './api';
+import { ttsSupported, speak, narrate, stopSpeaking, setPremiumTTS, isPremiumTTS, listKoreanVoices, setSelectedVoice, getSelectedVoiceName } from './speech';
 import { Avatar2D as Avatar, type Emotion, type Action } from './avatar2d';
 import { listSaves, upsertSave, removeSave, newSessionId, relativeTime, type Save } from './saves';
+import { preloadInterstitial, maybeShowAdOnSessionStart } from './sdk/appintoss';
 
 const app = document.getElementById('app')!;
-const recognizer = new Recognizer();
 
 // ── 앱 상태 ───────────────────────────────────────────────────
 const state = {
@@ -35,12 +35,12 @@ function renderSelect() {
       <div class="topbar">
         <div class="brand"><span>보이스토리</span></div>
         <div class="spacer"></div>
-        <span class="pill">말하면 이야기가 시작돼요</span>
+        <span class="pill">세아와 만드는 AI 이야기</span>
       </div>
       <div class="saves" id="saves"></div>
       <div class="hero">
         <h1>어떤 세계로 들어갈까요?</h1>
-        <p>세계를 고르고, 마이크를 눌러 말하면 세아가 당신만의 이야기를 살아 움직이는 캐릭터로 들려줍니다.</p>
+        <p>세계를 고르고 이야기를 입력하면, 세아가 당신만의 이야기를 살아 움직이는 캐릭터로 들려줍니다.</p>
       </div>
       <div class="worlds" id="worlds"></div>
     </div>`;
@@ -77,10 +77,8 @@ function renderChat() {
       <div class="log" id="log"></div>
       <div id="banner"></div>
       <div class="inputbar">
-        <div class="interim" id="interim"></div>
         <div class="row">
-          <textarea class="textin" id="text" rows="1" placeholder="말하거나 여기에 입력…"></textarea>
-          <button class="mic" id="mic" title="말하기">🎤</button>
+          <textarea class="textin" id="text" rows="1" placeholder="여기에 이야기를 입력…"></textarea>
           <button class="send" id="send">보내기</button>
         </div>
         <div class="hint" id="hint"></div>
@@ -89,7 +87,6 @@ function renderChat() {
 
   document.getElementById('back')!.onclick = () => {
     stopSpeaking(mouthCb);
-    recognizer.stop();
     disposeAvatar();
     state.world = null;
     state.history = [];
@@ -97,7 +94,6 @@ function renderChat() {
   };
   document.getElementById('voice')!.onclick = toggleVoice;
   document.getElementById('send')!.onclick = onSend;
-  document.getElementById('mic')!.onclick = onMic;
 
   const voicesel = document.getElementById('voicesel') as HTMLSelectElement | null;
   if (voicesel) voicesel.onchange = () => {
@@ -119,8 +115,7 @@ function renderChat() {
   });
 
   const hint = document.getElementById('hint')!;
-  if (!sttSupported) hint.textContent = '이 브라우저는 음성 인식을 지원하지 않아 텍스트로 진행돼요. (크롬 권장)';
-  else if (!ttsSupported) hint.textContent = '이 브라우저는 낭독을 지원하지 않아요.';
+  if (!ttsSupported) hint.textContent = '이 환경은 낭독을 지원하지 않아요. 텍스트로 진행됩니다.';
 
   // 아바타 생성 (세계별 캐릭터 세트)
   const stage = document.getElementById('stage') as HTMLElement;
@@ -206,7 +201,8 @@ function clearBanner() {
 }
 
 // ── 흐름 ─────────────────────────────────────────────────────
-function startWorld(w: World) {
+async function startWorld(w: World) {
+  await maybeShowAdOnSessionStart(); // 세션 경계 광고(3회마다 1번)
   state.world = w;
   state.sessionId = newSessionId();
   state.history = [{ role: 'assistant', content: w.opening }];
@@ -215,7 +211,8 @@ function startWorld(w: World) {
   if (state.voiceOn) narrate(w.opening, { onMouth: mouthCb });
 }
 
-function resumeSave(save: Save) {
+async function resumeSave(save: Save) {
+  await maybeShowAdOnSessionStart(); // 세션 경계 광고(3회마다 1번)
   // 세이브에 필요한 정보(id·name·char·history)가 모두 있어 세계 목록 없이도 이어짐
   state.world = { id: save.worldId, name: save.worldName, char: save.char, tagline: '', free: true, opening: '' };
   state.sessionId = save.id;
@@ -278,35 +275,6 @@ function toggleVoice() {
   btn.textContent = state.voiceOn ? '🔊' : '🔇';
 }
 
-function onMic() {
-  const mic = document.getElementById('mic')!;
-  const interim = document.getElementById('interim')!;
-  if (recognizer.listening) {
-    recognizer.stop();
-    return;
-  }
-  stopSpeaking(mouthCb); // 낭독 중이면 멈추고 듣기
-  mic.classList.add('listening');
-  interim.textContent = '듣는 중…';
-  recognizer.start({
-    onInterim: (t) => (interim.textContent = t),
-    onFinal: (t) => {
-      interim.textContent = '';
-      const ta = document.getElementById('text') as HTMLTextAreaElement;
-      ta.value = t;
-      submit(t);
-    },
-    onError: (e) => {
-      interim.textContent = '';
-      showBanner('err', e);
-    },
-    onEnd: () => {
-      mic.classList.remove('listening');
-      if (interim.textContent === '듣는 중…') interim.textContent = '';
-    },
-  });
-}
-
 function onSend() {
   const ta = document.getElementById('text') as HTMLTextAreaElement;
   const text = ta.value.trim();
@@ -364,8 +332,9 @@ async function submit(text: string) {
 // ── 부트스트랩 ────────────────────────────────────────────────
 async function boot() {
   renderSelect();
+  preloadInterstitial(); // 첫 광고 미리 로드 (토스 밖에서는 no-op)
   try {
-    const h = await fetch('/api/health').then((r) => r.json());
+    const h = await fetch(`${API_BASE}/api/health`).then((r) => r.json());
     setPremiumTTS(!!h.tts); // 서버에 TTS 키 있으면 프리미엄 목소리 사용
   } catch { /* health 실패 시 브라우저 TTS */ }
   try {
@@ -373,7 +342,7 @@ async function boot() {
     renderSelect();
   } catch (e: any) {
     const w = app.querySelector('#worlds');
-    if (w) w.innerHTML = `<p style="color:var(--danger)">${esc(e.message)} — 백엔드(server)가 켜져 있는지 확인해 주세요.</p>`;
+    if (w) w.innerHTML = `<p style="color:var(--danger)">${esc(e.message)}</p>`;
   }
 }
 boot();
@@ -381,11 +350,4 @@ boot();
 // 목소리 목록이 비동기로 로드되는 기기에서 선택기 갱신
 if (ttsSupported) {
   window.speechSynthesis?.addEventListener?.('voiceschanged', () => populateVoiceSelect());
-}
-
-// PWA 서비스워커
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
 }
