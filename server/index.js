@@ -250,7 +250,7 @@ app.post('/api/tts', async (req, res) => {
     } else if (CFG.ttsProvider === 'google') {
       // 구글 클라우드 TTS (한국어 네이티브 여성). 무료 100만자/월.
       // body.voice로 목소리 오버라이드 가능(샘플 비교용). 없으면 기본.
-      const voice = (req.body?.voice || CFG.ttsVoice || 'ko-KR-Neural2-A').toString();
+      const voice = (req.body?.voice || CFG.ttsVoice || 'ko-KR-Chirp3-HD-Leda').toString();
       // Chirp3-HD 음성은 pitch/speakingRate를 거부 → 기본 audioConfig만.
       const audioConfig = /Chirp3/i.test(voice)
         ? { audioEncoding: 'MP3' }
