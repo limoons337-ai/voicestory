@@ -59,6 +59,11 @@ const GM_FRAMEWORK = `너는 '세아'라는 이름의 AI 이야기 동반자다.
 const EMOTIONS = { 중립: 'neutral', 기쁨: 'happy', 슬픔: 'sad', 분노: 'angry', 놀람: 'surprised', 공포: 'fear', 편안: 'relaxed', 부끄럼: 'shy' };
 const ACTIONS = { 대기: 'idle', 말하기: 'talk', 끄덕: 'nod', 절레: 'shake', 뒷걸음: 'recoil', 공격: 'attack', 응원: 'cheer', 피격: 'hurt' };
 
+// 모델이 가끔 섞는 외국 문자(가나·키릴·한자·베트남어) 제거. 한글/영문/숫자/부호는 유지.
+function koreanize(s) {
+  return s.replace(/[぀-ヿЀ-ӿ一-鿿Ḁ-ỿ]/g, '');
+}
+
 function parseDirectives(text) {
   // 추론 모델의 사고블록이 새어나오면 제거
   text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*$/i, '').trim();
@@ -75,7 +80,7 @@ function parseDirectives(text) {
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  return { narration: narration || text.trim(), emotion, action };
+  return { narration: koreanize(narration) || narration || text.trim(), emotion, action };
 }
 
 // JSON 우선 파싱 (실패 시 태그 파싱으로 폴백)
@@ -85,7 +90,7 @@ function parseResponse(raw) {
   if (m) {
     try {
       const obj = JSON.parse(m[0]);
-      const narration = (obj.narration ?? '').toString().trim();
+      const narration = koreanize((obj.narration ?? '').toString()).trim();
       if (narration) {
         const emo = EMOTIONS[obj.emotion] || (Object.values(EMOTIONS).includes(obj.emotion) ? obj.emotion : 'neutral');
         const act = ACTIONS[obj.action] || (Object.values(ACTIONS).includes(obj.action) ? obj.action : 'idle');
@@ -107,7 +112,7 @@ function stripForDisplay(s) {
   let out = i >= 0 ? s.slice(0, i) : s;
   // 끝에서 만들어지는 중인 @태그 파편 제거 (@ / @감 / @감정 / @행 ...)
   out = out.replace(/@\s*(감정?|행동?)?\s*[:：]?\s*$/, '');
-  return out.replace(/\s+$/, '');
+  return koreanize(out.replace(/\s+$/, ''));
 }
 
 // OpenAI 호환 스트리밍: 토큰 delta를 onDelta(content)로 전달
