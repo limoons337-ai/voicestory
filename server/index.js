@@ -199,18 +199,18 @@ const turnLog = new Map(); // clientId -> { date, count }
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
-function checkAndCount(clientId) {
+function turnRemaining(clientId) { // 소비 없이 남은 턴 확인(peek)
   const today = todayStr();
   const rec = turnLog.get(clientId);
-  if (!rec || rec.date !== today) {
-    turnLog.set(clientId, { date: today, count: 1 });
-    return { ok: true, remaining: CFG.freeDailyTurns - 1 };
-  }
-  if (rec.count >= CFG.freeDailyTurns) {
-    return { ok: false, remaining: 0 };
-  }
+  if (!rec || rec.date !== today) return CFG.freeDailyTurns;
+  return Math.max(0, CFG.freeDailyTurns - rec.count);
+}
+function consumeTurn(clientId) { // 실제 1턴 소비, 소비 후 남은 턴 반환. 성공했을 때만 호출.
+  const today = todayStr();
+  const rec = turnLog.get(clientId);
+  if (!rec || rec.date !== today) { turnLog.set(clientId, { date: today, count: 1 }); return CFG.freeDailyTurns - 1; }
   rec.count += 1;
-  return { ok: true, remaining: CFG.freeDailyTurns - rec.count };
+  return CFG.freeDailyTurns - rec.count;
 }
 
 // ── LLM 호출 (OpenAI 호환 /chat/completions) ────────────────────
@@ -370,8 +370,7 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'history가 비어 있습니다.' });
   }
 
-  const gate = checkAndCount(clientId);
-  if (!gate.ok) {
+  if (turnRemaining(clientId) <= 0) {
     return res.status(429).json({
       error: '오늘의 무료 턴을 모두 사용했어요. 내일 다시 오거나 구독하면 계속할 수 있어요.',
       remaining: 0,
@@ -395,7 +394,7 @@ app.post('/api/chat', async (req, res) => {
   if (CFG.mock) {
     const { narration, emotion, action } = parseResponse(mockReply(lastUserText(history)));
     send({ type: 'delta', narration });
-    send({ type: 'done', reply: narration, emotion, action, remaining: gate.remaining });
+    send({ type: 'done', reply: narration, emotion, action, remaining: consumeTurn(clientId) });
     return res.end();
   }
 
@@ -408,7 +407,8 @@ app.post('/api/chat', async (req, res) => {
       if (disp && disp !== last) { last = disp; send({ type: 'delta', narration: disp }); }
     });
     const { narration, emotion, action } = parseResponse(buf);
-    send({ type: 'done', reply: narration, emotion, action, remaining: gate.remaining });
+    if (!narration) throw new Error('빈 응답');
+    send({ type: 'done', reply: narration, emotion, action, remaining: consumeTurn(clientId) });
     res.end();
   } catch (e) {
     console.error('[chat] LLM 오류:', e.message);
